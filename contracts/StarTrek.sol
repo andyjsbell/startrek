@@ -17,6 +17,11 @@ contract StarTrek {
         uint16 shipY;
         uint16[9] damage;
     }
+    struct Klingon {
+        uint8 y;
+        uint8 x;
+        int16 energy;
+    }
 
     enum Command {
         NAV,
@@ -30,12 +35,16 @@ contract StarTrek {
         XXX
     }
     uint constant INITIAL_TIMEUP = 25;
+    uint constant MAP_VISITED = 0x1000;
+
     uint randomNonce = 0;
     uint starDate;
     Time starTime;
     Enterprise enterprise;
     uint[9][9] galaxy;
     uint totalKlingons;
+    Klingon[3] klingonData;
+    int16 damage;
 
     event GameInitialised(uint klingons, Time time, uint starbases);
 
@@ -149,8 +158,7 @@ contract StarTrek {
         }
 
         // Give more time for more Klingons
-        if (klingonsLeft > starTime.timeUp)
-            starTime.timeUp = klingonsLeft + 1;
+        if (klingonsLeft > starTime.timeUp) starTime.timeUp = klingonsLeft + 1;
 
         /* Add a base if we don't have one */
         if (starbasesLeft == 0) {
@@ -168,6 +176,53 @@ contract StarTrek {
         totalKlingons = klingonsLeft;
 
         emit GameInitialised(totalKlingons, starTime, starbasesLeft);
+    }
+
+    function quadrantName(
+        bool small,
+        uint8 y,
+        uint8 x
+    ) internal pure returns (string memory) {
+        string[17] memory quadNames = [
+            "",
+            "Antares",
+            "Rigel",
+            "Procyon",
+            "Vega",
+            "Canopus",
+            "Altair",
+            "Sagittarius",
+            "Pollux",
+            "Sirius",
+            "Deneb",
+            "Capella",
+            "Betelgeuse",
+            "Aldebaran",
+            "Regulus",
+            "Arcturus",
+            "Spica"
+        ];
+        string[5] memory sectionNames = ["", " I", " II", " III", " IV"];
+
+        if (y < 1 || y > 8 || x < 1 || x > 8) {
+            return "Unknown";
+        }
+
+        string memory quadName;
+        if (x <= 4) {
+            quadName = quadNames[y];
+        } else {
+            quadName = quadNames[y + 8];
+        }
+
+        if (small) {
+            if (x > 4) {
+                x = x - 4;
+            }
+            quadName = string.concat(quadName, sectionNames[x]);
+        }
+
+        return quadName;
     }
 
     function newQuadrant() public {}
