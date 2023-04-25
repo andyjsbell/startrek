@@ -123,8 +123,8 @@ contract StarTrek {
         starTime.timeStart = starDate;
         starTime.timeUp = INITIAL_TIMEUP + randomMod(10);
         initializeEnterprise();
-        uint8 klingons_left = 0;
-        uint8 starbases_left = 0;
+        uint8 klingonsLeft = 0;
+        uint8 starbasesLeft = 0;
 
         for (uint8 i = 1; i <= 8; i++) {
             for (uint8 j = 1; j <= 8; j++) {
@@ -134,12 +134,12 @@ contract StarTrek {
                 else if (r > 95) klingons = 2;
                 else if (r > 80) klingons = 1;
 
-                klingons_left = klingons_left + klingons;
+                klingonsLeft += klingons;
                 uint8 starbases = 0;
 
                 if (uint8(randomMod(100)) > 96) starbases = 1;
 
-                starbases_left = starbases_left + starbases;
+                starbasesLeft += starbases;
 
                 galaxy[i][j] =
                     (klingons << 8) +
@@ -149,25 +149,25 @@ contract StarTrek {
         }
 
         // Give more time for more Klingons
-        if (klingons_left > starTime.timeUp)
-            starTime.timeUp = klingons_left + 1;
+        if (klingonsLeft > starTime.timeUp)
+            starTime.timeUp = klingonsLeft + 1;
 
         /* Add a base if we don't have one */
-        if (starbases_left == 0) {
+        if (starbasesLeft == 0) {
             yp = uint8(randomMod(8));
             xp = uint8(randomMod(8));
             if (galaxy[yp][xp] < 0x200) {
                 galaxy[yp][xp] += (1 << 8);
-                klingons_left++;
+                klingonsLeft++;
             }
 
             galaxy[yp][xp] += (1 << 4);
-            starbases_left++;
+            starbasesLeft++;
         }
 
-        totalKlingons = klingons_left;
+        totalKlingons = klingonsLeft;
 
-        emit GameInitialised(totalKlingons, starTime, starbases_left);
+        emit GameInitialised(totalKlingons, starTime, starbasesLeft);
     }
 
     function newQuadrant() public {}
