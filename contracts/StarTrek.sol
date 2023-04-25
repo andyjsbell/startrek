@@ -37,6 +37,8 @@ contract StarTrek {
     uint[9][9] galaxy;
     uint totalKlingons;
 
+    event GameInitialised(uint klingons, Time time, uint starbases);
+
     function newGame() public {
         initialize();
         newQuadrant();
@@ -164,6 +166,8 @@ contract StarTrek {
         }
 
         totalKlingons = klingons_left;
+
+        emit GameInitialised(totalKlingons, starTime, starbases_left);
     }
 
     function newQuadrant() public {}
