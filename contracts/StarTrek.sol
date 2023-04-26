@@ -16,8 +16,8 @@ contract StarTrek {
         uint8 shield;
         uint8 quadY;
         uint8 quadX;
-        uint16 shipX;
-        uint16 shipY;
+        uint8 shipX;
+        uint8 shipY;
         uint16[9] damage;
     }
 
@@ -52,6 +52,10 @@ contract StarTrek {
     uint8 constant Q_BASE = 2;
     uint8 constant Q_KLINGON = 3;
     uint8 constant Q_SHIP = 4;
+    uint8 constant QUADRANT_WIDTH = 8;
+    uint8 constant QUADRANT_HEIGHT = 8;
+    uint8 constant GALAXY_WIDTH = 9;
+    uint8 constant GALAXY_HEIGHT = 9;
 
     // Nonce for pseudo random generator
     uint randomNonce = 0;
@@ -62,9 +66,9 @@ contract StarTrek {
     // Our home
     Enterprise enterprise;
     // Galaxy, not as quite as big as one thinks.  Made up of 9x9 quadrants
-    uint16[9][9] galaxy;
+    uint16[GALAXY_HEIGHT][GALAXY_WIDTH] galaxy;
     // A quadrant of a galaxy which has 8x8 cells
-    uint8[8][8] quadrant;
+    uint8[QUADRANT_HEIGHT][QUADRANT_WIDTH] quadrant;
 
     uint8 totalKlingons;
     Klingon[3] klingonData;
@@ -157,7 +161,7 @@ contract StarTrek {
         _enterprise.torps = 10;
         _enterprise.shield = 0;
         _enterprise.quadY = randomUInt8(8);
-        _enterprise.quadX = randomUInt8(8);
+        _enterprise.quadX = randomUInt8(8); 
         _enterprise.shipY = randomUInt8(8);
         _enterprise.shipX = randomUInt8(8);
         _enterprise.damage = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -175,17 +179,15 @@ contract StarTrek {
         uint8 numberOfKlingons = 0;
         uint8 numberOfStarBases = 0;
 
-        for (uint8 i = 1; i <= 8; i++) {
-            for (uint8 j = 1; j <= 8; j++) {
+        for (uint8 i = 1; i < GALAXY_HEIGHT; i++) {
+            for (uint8 j = 1; j < GALAXY_WIDTH; j++) {
                 uint8 r = randomUInt8(100);
                 uint8 klingons = 0;
-                if (r > 98) { 
+                if (r > 98) {
                     klingons = 3;
-                }
-                else if (r > 95) {
+                } else if (r > 95) {
                     klingons = 2;
-                }
-                else if (r > 80) {
+                } else if (r > 80) {
                     klingons = 1;
                 }
 
@@ -196,7 +198,7 @@ contract StarTrek {
                     starbases = 1;
                     numberOfStarBases += starbases;
                 }
-                
+
                 galaxy[i][j] = encodeQuadrant(
                     klingons,
                     starbases,
@@ -212,8 +214,8 @@ contract StarTrek {
 
         /* Add a base if we don't have one */
         if (numberOfStarBases == 0) {
-            uint y = randomUInt8(8);
-            uint x = randomUInt8(8);
+            uint y = randomUInt8(GALAXY_HEIGHT);
+            uint x = randomUInt8(GALAXY_WIDTH);
             if (galaxy[y][x] < 0x200) {
                 galaxy[y][x] += (uint8(1) << 8);
                 numberOfKlingons++;
@@ -283,8 +285,8 @@ contract StarTrek {
         Coord[] memory emptySpaces;
         uint8 numberOfEmptySpaces = 0;
 
-        for (uint8 i = 0; i < 8; i++) {
-            for (uint8 j = 0; j < 8; j++) {
+        for (uint8 i = 0; i < QUADRANT_HEIGHT; i++) {
+            for (uint8 j = 0; j < QUADRANT_WIDTH; j++) {
                 if (quadrant[i][j] == Q_SPACE) {
                     Coord memory coord;
                     coord.y = i;
@@ -320,13 +322,70 @@ contract StarTrek {
         return (klingons << 8) + (starbases << 4) + stars;
     }
 
+    function placeKlingons(uint8 klingons) internal {
+        for (uint8 i = 0; i < 3; i++) {
+            klingonData[i] = Klingon(0, 0, 0);
+        }
+
+        if (klingons > 0) {
+            for (uint i = 0; i < klingons; i++) {
+                (bool empty, Coord memory coord) = findEmptyCoordinate();
+                if (empty) {
+                    quadrant[coord.y][coord.x] = Q_KLINGON;
+                    klingonData[i].y = coord.y;
+                    klingonData[i].x = coord.x;
+                    klingonData[i].energy =
+                        uint16(100) +
+                        uint16(randomMod(200));
+                }
+            }
+        }
+    }
+
+    function placeStarBases(uint8 starBases) internal {
+        if (starBases > 0) {
+            (bool empty, Coord memory coord) = findEmptyCoordinate();
+            if (empty) {
+                quadrant[coord.y][coord.x] = Q_BASE;
+                baseY = coord.y;
+                baseX = coord.x;
+            }
+        }
+    }
+
+    function placeStars(uint8 stars) internal {
+        for (uint8 i = 1; i <= stars; i++) {
+            (bool empty, Coord memory coord) = findEmptyCoordinate();
+            if (empty) {
+                quadrant[coord.y][coord.x] = Q_STAR;
+            }
+        }
+    }
+
+    function clearQuadrant() internal {
+        for (uint i = 0; i < 8; i++) {
+            quadrant[i] = [
+                Q_SPACE,
+                Q_SPACE,
+                Q_SPACE,
+                Q_SPACE,
+                Q_SPACE,
+                Q_SPACE,
+                Q_SPACE,
+                Q_SPACE
+            ];
+        }
+    }
+
     function newQuadrant() internal {
+        
         galaxy[enterprise.quadY][enterprise.quadX] |= MAP_VISITED;
+        
         if (
-            enterprise.quadY >= 1 &&
-            enterprise.quadY <= 8 &&
-            enterprise.quadX >= 1 &&
-            enterprise.quadX <= 8
+            enterprise.quadY > 0 &&
+            enterprise.quadY < GALAXY_HEIGHT &&
+            enterprise.quadX > 0 &&
+            enterprise.quadX < GALAXY_WIDTH
         ) {
             string memory name = quadrantName(
                 false,
@@ -351,49 +410,12 @@ contract StarTrek {
             }
         }
 
-        for (uint8 i = 1; i <= 3; i++) {
-            klingonData[i].y = 0;
-            klingonData[i].x = 0;
-            klingonData[i].energy = 0;
-        }
-
-        for (uint i = 0; i < 8; i++) {
-            for (uint j = 0; j < 8; j++) {
-                quadrant[i][j] = Q_SPACE;
-            }
-        }
+        clearQuadrant();
 
         placeShip();
-
-        if (klingons > 0) {
-            for (uint i = 0; i < klingons; i++) {
-                (bool empty, Coord memory coord) = findEmptyCoordinate();
-                if (empty) {
-                    quadrant[coord.y][coord.x] = Q_KLINGON;
-                    klingonData[i].y = coord.y;
-                    klingonData[i].x = coord.x;
-                    klingonData[i].energy =
-                        uint16(100) +
-                        uint16(randomMod(200));
-                }
-            }
-        }
-
-        if (starbases > 0) {
-            (bool empty, Coord memory coord) = findEmptyCoordinate();
-            if (empty) {
-                quadrant[coord.y][coord.x] = Q_BASE;
-                baseY = coord.y;
-                baseX = coord.x;
-            }
-        }
-
-        for (uint8 i = 1; i <= stars; i++) {
-            (bool empty, Coord memory coord) = findEmptyCoordinate();
-            if (empty) {
-                quadrant[coord.y][coord.x] = Q_STAR;
-            }
-        }
+        placeKlingons(klingons);
+        placeStarBases(starbases);
+        placeStars(stars);
     }
 
     function shortRangeScan() public {}
